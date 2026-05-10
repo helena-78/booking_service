@@ -1,0 +1,177 @@
+### ============================================================
+### SportLink - Booking Service - HTTP request samples
+### ============================================================
+### Service runs on http://localhost:8084
+### Two bookings are seeded on startup by DataInitializer:
+###   - bk-001  status=PENDING    payment=PENDING (50.00 EUR)
+###   - bk-002  status=CONFIRMED  payment=PAID    (75.50 EUR)
+###
+### Endpoints that work standalone (no other service required):
+###   * GET    /api/bookings
+###   * GET    /api/bookings/{id}
+###   * PUT    /api/bookings/{id}/confirm
+###   * POST   /api/bookings/{id}/refund
+###
+### Endpoints that need a peer service running:
+###   * POST   /api/bookings                  -> needs Scheduling Service @ :8085
+###   * PUT    /api/bookings/{id}/cancel      -> needs Scheduling Service @ :8085
+###   * GET    /api/bookings/facilities/...   -> needs Search Service     @ :8086
+### These return 503 Service Unavailable until peer services are up.
+### ============================================================
+
+
+### ---------- 1. Swagger UI (open in browser) -----------------
+GET http://localhost:8084/swagger-ui/index.html
+
+
+### ---------- 2. OpenAPI spec (raw JSON) ---------------------
+GET http://localhost:8084/v1/api-docs
+
+
+### ============================================================
+### READ - GET endpoints (work without peer services)
+### ============================================================
+
+### 3. List all bookings (no filters)  -> returns the 2 seeded bookings
+GET http://localhost:8084/api/bookings
+
+
+### 4. Get a single booking by ID  (PENDING one)
+GET http://localhost:8084/api/bookings/bk-001
+
+
+### 5. Get a single booking by ID  (CONFIRMED one)
+GET http://localhost:8084/api/bookings/bk-002
+
+
+### 6. Get a booking that does not exist  -> 404 Not Found
+GET http://localhost:8084/api/bookings/does-not-exist
+
+
+### ============================================================
+### FILTER - GET /api/bookings with query params
+### ============================================================
+
+### 7. Filter by activityId
+GET http://localhost:8084/api/bookings?activityId=act-200
+
+
+### 8. Filter by sportCenterId
+GET http://localhost:8084/api/bookings?sportCenterId=sc-100
+
+
+### 9. Filter by bookingStatus = PENDING
+GET http://localhost:8084/api/bookings?bookingStatus=PENDING
+
+
+### 10. Filter by bookingStatus = CONFIRMED
+GET http://localhost:8084/api/bookings?bookingStatus=CONFIRMED
+
+
+### 11. Filter by bookingStatus = CANCELLED  -> empty list initially
+GET http://localhost:8084/api/bookings?bookingStatus=CANCELLED
+
+
+### 12. Combined filter: sportCenterId + bookingStatus
+GET http://localhost:8084/api/bookings?sportCenterId=sc-101&bookingStatus=CONFIRMED
+
+
+### 13. All three filters at once
+GET http://localhost:8084/api/bookings?activityId=act-200&sportCenterId=sc-100&bookingStatus=PENDING
+
+
+### ============================================================
+### STATE TRANSITIONS - work without peer services
+### ============================================================
+
+### 14. Confirm bk-001:  PENDING -> CONFIRMED, payment PENDING -> PAID
+PUT http://localhost:8084/api/bookings/bk-001/confirm
+
+
+### 15. Try to confirm an already-CONFIRMED booking  -> 409 Conflict
+PUT http://localhost:8084/api/bookings/bk-002/confirm
+
+
+### 16. Try to refund a CONFIRMED (not yet cancelled) booking  -> 409 Conflict
+###     Refund only allowed when bookingStatus=CANCELLED + payment=PAID.
+POST http://localhost:8084/api/bookings/bk-002/refund
+
+
+### ============================================================
+### CREATE - needs Scheduling Service @ :8085
+### Returns 503 Service Unavailable when Scheduling is down.
+### ============================================================
+
+### 17. Create a new booking (full payload)
+POST http://localhost:8084/api/bookings
+Content-Type: application/json
+
+{
+    "sportCenterId": "sc-100",
+    "activityId":    "act-500",
+    "timeSlotId":    "ts-900",
+    "payment": {
+        "amount":        60.00,
+        "currency":      "EUR",
+        "paymentMethod": "CARD"
+    }
+}
+
+
+### 18. Create another booking - different sport center / activity
+POST http://localhost:8084/api/bookings
+Content-Type: application/json
+
+{
+    "sportCenterId": "sc-200",
+    "activityId":    "act-700",
+    "timeSlotId":    "ts-901",
+    "payment": {
+        "amount":        100.00,
+        "currency":      "EUR",
+        "paymentMethod": "PAYPAL"
+    }
+}
+
+
+### ============================================================
+### CANCEL  - needs Scheduling Service @ :8085
+### ============================================================
+
+### 19. Cancel a confirmed booking - releases slot via Scheduling Service
+PUT http://localhost:8084/api/bookings/bk-002/cancel
+
+
+### 20. After cancel succeeds, refund becomes valid:
+###     bookingStatus=CANCELLED + paymentStatus=PAID -> REFUNDED
+POST http://localhost:8084/api/bookings/bk-002/refund
+
+
+### 21. Try to cancel an already-cancelled booking  -> 409 Conflict
+PUT http://localhost:8084/api/bookings/bk-002/cancel
+
+
+### 22. Try to refund twice  -> 409 Conflict
+###     (paymentStatus is REFUNDED now, not PAID)
+POST http://localhost:8084/api/bookings/bk-002/refund
+
+
+### ============================================================
+### SEARCH  - needs Search Service @ :8086
+### Delegates synchronously to GET /api/v1/search?entityType=FACILITY
+### ============================================================
+
+### 23. Search facilities by sport type
+GET http://localhost:8084/api/bookings/facilities/search?sportType=BASKETBALL
+
+
+### 24. Search facilities by sport + location
+GET http://localhost:8084/api/bookings/facilities/search?sportType=BASKETBALL&location=Tartu
+
+
+### 25. Search facilities filtered by a specific time slot
+GET http://localhost:8084/api/bookings/facilities/search?sportType=FOOTBALL&location=Tallinn&timeSlotId=ts-300
+
+
+### 26. Search with no filters  -> all facilities the Search Service has indexed
+GET http://localhost:8084/api/bookings/facilities/search
