@@ -31,7 +31,7 @@ public class SearchClient {
      */
     public List<FacilityDto> searchFacilities(String sportType, String location, String timeSlotId) {
         StringBuilder url = new StringBuilder(searchServiceUrl)
-                .append("/api/v1/search?entityType=FACILITY");
+                .append("/api/search?entityType=FACILITY");
         if (sportType != null && !sportType.isBlank()) {
             url.append("&sportType=").append(sportType);
         }
