@@ -25,7 +25,7 @@ GET http://localhost:8084/swagger-ui/index.html
 
 
 ### ---------- 2. OpenAPI spec (raw JSON) ---------------------
-GET http://localhost:8084/v1/api-docs
+GET http://localhost:8084/v3/api-docs
 
 
 ### ============================================================
