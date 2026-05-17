@@ -51,7 +51,7 @@ export default {
       this.result = null
       this.loading = true
 
-      fetch('http://localhost:8087/api/timeslots/reserve', {
+      fetch('http://localhost:8089/api/timeslots/reserve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(this.form)

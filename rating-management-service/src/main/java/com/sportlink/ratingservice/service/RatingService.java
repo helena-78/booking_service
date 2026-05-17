@@ -12,8 +12,8 @@ import com.sportlink.ratingservice.model.Rating;
 import com.sportlink.ratingservice.model.UserReputation;
 import com.sportlink.ratingservice.repository.RatingRepository;
 import com.sportlink.ratingservice.repository.UserReputationRepository;
-import com.sportlink.ratingservice.stub.AccountManagementStub;
-import com.sportlink.ratingservice.stub.ActivityManagementStub;
+import com.sportlink.ratingservice.client.AccountManagementClient;
+import com.sportlink.ratingservice.client.ActivityManagementClient;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,21 +23,21 @@ public class RatingService {
 
     private final RatingRepository ratingRepository;
     private final UserReputationRepository reputationRepository;
-    private final AccountManagementStub accountManagementStub;
-    private final ActivityManagementStub activityManagementStub;
+    private final AccountManagementClient accountManagementClient;
+    private final ActivityManagementClient activityManagementClient;
 
     public Rating submitRating(RatingRequest request) {
 
-        // Validate both users exist (stub)
-        if (!accountManagementStub.userExists(request.getReviewerId())) {
+        // Validate both users exist
+        if (!accountManagementClient.userExists(request.getReviewerId())) {
             throw new IllegalArgumentException("Reviewer not found: " + request.getReviewerId());
         }
-        if (!accountManagementStub.userExists(request.getRevieweeId())) {
+        if (!accountManagementClient.userExists(request.getRevieweeId())) {
             throw new IllegalArgumentException("Reviewee not found: " + request.getRevieweeId());
         }
 
-        // Validate shared participation and activity is completed (stub)
-        if (!activityManagementStub.bothParticipatedAndActivityCompleted(
+        // Validate shared participation and activity is completed
+        if (!activityManagementClient.bothParticipatedAndActivityCompleted(
                 request.getActivityId(), request.getReviewerId(), request.getRevieweeId())) {
             throw new IllegalStateException("Both users must have participated in a COMPLETED activity.");
         }

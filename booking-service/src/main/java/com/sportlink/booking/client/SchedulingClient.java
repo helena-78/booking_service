@@ -19,7 +19,7 @@ public class SchedulingClient {
 
     private final WebClient.Builder webClientBuilder;
 
-    @Value("${services.scheduling.url:http://localhost:8085}")
+    @Value("${services.scheduling.url:http://localhost:8089}")
     private String schedulingServiceUrl;
 
     /**

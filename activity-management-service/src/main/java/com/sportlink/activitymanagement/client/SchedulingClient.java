@@ -25,7 +25,7 @@ public class SchedulingClient {
     private final boolean mock;
 
     public SchedulingClient(WebClient.Builder webClientBuilder,
-                            @Value("${sportlink.services.scheduling.url:http://localhost:8087}") String schedulingUrl,
+                            @Value("${sportlink.services.scheduling.url:http://localhost:8089}") String schedulingUrl,
                             @Value("${sportlink.mock.dependencies:false}") boolean mock) {
         this.webClientBuilder = webClientBuilder;
         this.schedulingUrl = schedulingUrl;

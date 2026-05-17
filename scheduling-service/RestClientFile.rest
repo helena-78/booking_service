@@ -1,4 +1,4 @@
-@host = http://localhost:8087
+@host = http://localhost:8089
 
 # Pre-defined IDs (any UUIDs work — Scheduling doesn't validate users itself)
 @userA = 11111111-1111-1111-1111-111111111111

@@ -1,0 +1,196 @@
+### ============================================================
+### SportLink - Search Service - HTTP request samples
+### ============================================================
+### Service runs on http://localhost:8086
+### Seeded by DataInitializer on startup:
+###   FACILITIES:
+###     sc-100  Tartu Sport Hall        BASKETBALL  Tartu
+###     sc-101  Tallinn Football Arena  FOOTBALL    Tallinn
+###     sc-200  Kalev Sport Center      BASKETBALL  Tallinn
+###   USERS:
+###     usr-100 Olena K. BASKETBALL INTERMEDIATE Tartu   rating 4.6
+###     usr-101 Kirill M. FOOTBALL  ADVANCED     Tallinn rating 4.9
+###   ACTIVITIES:
+###     act-200 Sunday Pickup Basketball BASKETBALL OPEN Tartu
+###     act-201 Friday Night Football    FOOTBALL   OPEN Tallinn
+###
+### Endpoints that work standalone (no peer service required):
+###   * GET    /api/search
+###   * GET    /api/search/users
+###   * GET    /api/search/activities
+###   * GET    /api/search/facilities         (without sportCenterId)
+###   * GET    /api/search/index/{type}/{id}
+###   * POST   /api/search/index
+###   * DELETE /api/search/index/{type}/{id}
+###
+### Endpoints that need the Booking Service @ :8088:
+###   * GET    /api/search/facilities?sportCenterId=...
+### Returns 503 Service Unavailable when Booking is down.
+### ============================================================
+
+
+### ---------- 1. Swagger UI (open in browser) -----------------
+GET http://localhost:8086/swagger-ui/index.html
+
+
+### ---------- 2. OpenAPI spec (raw JSON) ---------------------
+GET http://localhost:8086/v1/api-docs
+
+
+### ============================================================
+### CROSS-ENTITY SEARCH - GET /api/search
+### ============================================================
+
+### 3. All indexed entries (no filters)
+GET http://localhost:8086/api/search
+
+
+### 4. Free-text search - matches displayName and keywords
+GET http://localhost:8086/api/search?q=basketball
+
+
+### 5. Filter by entityType only
+GET http://localhost:8086/api/search?entityType=FACILITY
+
+
+### 6. Filter by entityType + sportType + location
+GET http://localhost:8086/api/search?entityType=USER&sportType=BASKETBALL&location=Tartu
+
+
+### 7. Filter by minRating (USER entries only have rating)
+GET http://localhost:8086/api/search?entityType=USER&minRating=4.8
+
+
+### ============================================================
+### BOOKING-SERVICE INCOMING CALLS - GET /api/search
+### These are the exact queries the Booking Service's SearchClient
+### makes against this service.
+### ============================================================
+
+### 8. Same query the Booking Service makes internally for facility lookup
+GET http://localhost:8086/api/search?entityType=FACILITY&sportType=BASKETBALL
+
+
+### 9. With location filter
+GET http://localhost:8086/api/search?entityType=FACILITY&sportType=BASKETBALL&location=Tartu
+
+
+### 9b. With timeSlotId - routes to booking-aware facility search path
+GET http://localhost:8086/api/search?entityType=FACILITY&sportType=BASKETBALL&timeSlotId=ts-300
+
+
+### ============================================================
+### USER SEARCH - GET /api/search/users
+### Used by Matching Service to retrieve candidates.
+### ============================================================
+
+### 10. All users
+GET http://localhost:8086/api/search/users
+
+
+### 11. Filter by sport + skill level
+GET http://localhost:8086/api/search/users?sportType=BASKETBALL&skillLevel=INTERMEDIATE
+
+
+### 12. Filter by minimum rating
+GET http://localhost:8086/api/search/users?userRatingScore=4.7
+
+
+### ============================================================
+### ACTIVITY SEARCH - GET /api/search/activities
+### ============================================================
+
+### 13. All activities
+GET http://localhost:8086/api/search/activities
+
+
+### 14. By title (substring, case-insensitive)
+GET http://localhost:8086/api/search/activities?activityTitle=football
+
+
+### 15. By status + sport
+GET http://localhost:8086/api/search/activities?activityStatus=OPEN&sportType=BASKETBALL
+
+
+### ============================================================
+### FACILITY SEARCH - GET /api/search/facilities
+### ============================================================
+
+### 16. All facilities (no Booking Service call)
+GET http://localhost:8086/api/search/facilities
+
+
+### 17. By sport
+GET http://localhost:8086/api/search/facilities?sportType=BASKETBALL
+
+
+### 18. By sport + location
+GET http://localhost:8086/api/search/facilities?sportType=BASKETBALL&location=Tartu
+
+
+### 19. *** REAL INTEGRATION *** - by sportCenterId
+###      triggers a synchronous call to Booking Service @ :8088.
+###      Booking Service has seeded bookings for sc-100 and sc-101.
+GET http://localhost:8086/api/search/facilities?sportCenterId=sc-100
+
+
+### 20. sportCenterId for a center the Booking Service knows about
+GET http://localhost:8086/api/search/facilities?sportCenterId=sc-101
+
+
+### 21. sportCenterId for a center with no bookings -> empty result
+GET http://localhost:8086/api/search/facilities?sportCenterId=sc-200
+
+
+### ============================================================
+### INDEX MAINTENANCE - GET / POST / DELETE
+### ============================================================
+
+### 22. Get a specific index entry
+GET http://localhost:8086/api/search/index/FACILITY/sc-100
+
+
+### 23. Upsert a brand-new index entry
+POST http://localhost:8086/api/search/index
+Content-Type: application/json
+
+{
+    "entityType": "FACILITY",
+    "entityId":   "sc-300",
+    "displayName":"New Volleyball Hall",
+    "keywords":   ["volleyball", "tartu", "indoor"],
+    "filters": {
+        "sportType":    "VOLLEYBALL",
+        "location":     "Tartu",
+        "facilityName": "New Volleyball Hall"
+    }
+}
+
+
+### 24. Upsert again with same entityType+entityId -> updates the existing row
+POST http://localhost:8086/api/search/index
+Content-Type: application/json
+
+{
+    "entityType": "FACILITY",
+    "entityId":   "sc-300",
+    "displayName":"New Volleyball & Badminton Hall",
+    "keywords":   ["volleyball", "badminton", "tartu", "indoor"],
+    "filters": {
+        "sportType":    "VOLLEYBALL",
+        "location":     "Tartu",
+        "facilityName": "New Volleyball & Badminton Hall"
+    }
+}
+
+
+### 25. Delete an index entry
+DELETE http://localhost:8086/api/search/index/FACILITY/sc-300
+
+
+### 26. Delete a non-existent entry  -> 404 Not Found
+DELETE http://localhost:8086/api/search/index/FACILITY/does-not-exist
+
+
+### 27. Get a non-existent entry  -> 404 Not Found
+GET http://localhost:8086/api/search/index/USER/does-not-exist

@@ -49,7 +49,7 @@ export default {
     fetchSlots() {
       this.loading = true
       this.error = null
-      fetch('http://localhost:8087/api/timeslots/available')
+      fetch('http://localhost:8089/api/timeslots/available')
         .then(response => {
           if (!response.ok) {
             throw new Error('Failed to fetch slots (HTTP ' + response.status + ')')

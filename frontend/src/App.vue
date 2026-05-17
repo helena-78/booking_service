@@ -6,7 +6,12 @@
         <router-link to="/activities">Activities</router-link> |
         <router-link to="/activities/new">Create Activity</router-link> |
         <router-link to="/slots">Available Slots</router-link> |
-        <router-link to="/slots/reserve">Reserve a Slot</router-link>
+        <router-link to="/slots/reserve">Reserve a Slot</router-link> |
+        <router-link to="/account/login">Login</router-link> |
+        <router-link to="/moderation/cases">Cases</router-link> |
+        <router-link to="/moderation/sanctions/new">Apply Sanction</router-link> |
+        <router-link to="/ratings">User Ratings</router-link>
+        <router-link to="/search/facilities">Facility Search</router-link>
       </nav>
     </header>
 
