@@ -9,6 +9,9 @@ import ModerationCases from '../views/moderation/Cases.vue'
 import ApplySanction from '../views/moderation/ApplySanction.vue'
 import UserRatings from '../views/ratings/UserRatings.vue'
 import FacilitySearch from '../views/search/FacilitySearch.vue'
+import AllBookings from '../views/bookings/AllBookings.vue'
+import CreateBooking from '../views/bookings/CreateBooking.vue'
+import BookingFacilitySearch from '../views/bookings/BookingFacilitySearch.vue'
 
 const routes = [
   {
@@ -59,6 +62,21 @@ const routes = [
     path: '/search/facilities',
     name: 'FacilitySearch',
     component: FacilitySearch
+  },
+  {
+    path: '/bookings',
+    name: 'AllBookings',
+    component: AllBookings
+  },
+  {
+    path: '/bookings/new',
+    name: 'CreateBooking',
+    component: CreateBooking
+  },
+  {
+    path: '/bookings/facilities',
+    name: 'BookingFacilitySearch',
+    component: BookingFacilitySearch
   },
   {
     // fallback for unknown routes — redirect to activities

@@ -15,6 +15,7 @@ import com.sportlink.booking.dto.FacilityDto;
 import com.sportlink.booking.dto.MoneyDto;
 import com.sportlink.booking.dto.PaymentDto;
 import com.sportlink.booking.dto.PaymentRequestDto;
+import com.sportlink.booking.event.publisher.BookingEventPublisher;
 import com.sportlink.booking.exception.BookingNotFoundException;
 import com.sportlink.booking.exception.InvalidBookingStateException;
 import com.sportlink.booking.model.Booking;
@@ -35,6 +36,7 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final SchedulingClient schedulingClient;
     private final SearchClient searchClient;
+    private final BookingEventPublisher eventPublisher;
 
     public BookingDto createBooking(CreateBookingRequest request) {
         // Reserve the time slot via Scheduling Service.
@@ -67,7 +69,10 @@ public class BookingService {
         bookingRepository.save(booking);
         log.info("Booking {} created with status PENDING", booking.getBookingId());
 
-        // TODO (Checkpoint 3): publish BookingCreated event asynchronously.
+        // Publish BookingCreated event asynchronously (Kafka).
+        // Consumed by: Notification
+        eventPublisher.publishBookingCreated(booking);
+
         return mapToBookingDto(booking);
     }
 
@@ -126,7 +131,10 @@ public class BookingService {
         bookingRepository.save(booking);
         log.info("Booking {} confirmed and payment marked as PAID", bookingId);
 
-        // TODO (Checkpoint 3): publish BookingConfirmed event.
+        // Publish BookingConfirmed event asynchronously (Kafka).
+        // Consumed by: Notification, Search, Scheduling 
+        eventPublisher.publishBookingConfirmed(booking);
+
         return mapToBookingDto(booking);
     }
 
@@ -147,7 +155,10 @@ public class BookingService {
         bookingRepository.save(booking);
         log.info("Booking {} cancelled", bookingId);
 
-        // TODO (Checkpoint 3): publish BookingCancelled event.
+        // Publish BookingCancelled event asynchronously (Kafka).
+        // Consumed by: Search 
+        eventPublisher.publishBookingCancelled(booking);
+
         return mapToBookingDto(booking);
     }
 
@@ -171,7 +182,10 @@ public class BookingService {
         bookingRepository.save(booking);
         log.info("Booking {} refunded", bookingId);
 
-        // TODO (Checkpoint 3): publish PaymentRefunded event.
+        // Publish PaymentRefunded event asynchronously (Kafka).
+        // Consumed by: Notification 
+        eventPublisher.publishPaymentRefunded(booking);
+
         return mapToBookingDto(booking);
     }
 

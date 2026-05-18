@@ -26,6 +26,7 @@ import com.sportlink.booking.client.SearchClient;
 import com.sportlink.booking.dto.CreateBookingRequest;
 import com.sportlink.booking.dto.FacilityDto;
 import com.sportlink.booking.dto.PaymentRequestDto;
+import com.sportlink.booking.event.publisher.BookingEventPublisher;
 import com.sportlink.booking.exception.SchedulingServiceException;
 import com.sportlink.booking.exception.SearchServiceException;
 import com.sportlink.booking.repository.BookingRepository;
@@ -37,7 +38,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * external components.
  *    one happy path test
  *    one error case test
- *    tested endpoints depend on other components (SchedulingClient, SearchClient) that are mocked
+ *    tested endpoints depend on other components (SchedulingClient, SearchClient,
+ *    and the Kafka publisher) that are mocked.
  */
 @WebMvcTest(BookingController.class)
 class BookingControllerTest {
@@ -57,14 +59,18 @@ class BookingControllerTest {
     @MockBean
     private SearchClient searchClient;
 
+    @MockBean
+    private BookingEventPublisher eventPublisher;
+
 
     @TestConfiguration
     static class TestConfig {
         @Bean
         BookingService bookingService(BookingRepository br,
                                       SchedulingClient sc,
-                                      SearchClient sr) {
-            return new BookingService(br, sc, sr);
+                                      SearchClient sr,
+                                      BookingEventPublisher ep) {
+            return new BookingService(br, sc, sr, ep);
         }
     }
 
