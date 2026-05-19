@@ -5,6 +5,10 @@ spring:
   application:
     name: account-management-service
 
+  web:
+    locale: en
+    locale-resolver: fixed
+
   datasource:
     url: jdbc:postgresql://localhost:5434/account_service_db
     username: postgres
@@ -20,12 +24,33 @@ spring:
         format_sql: true
     show-sql: false
 
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        # Don't write Java class names into Kafka headers so consumers in
+        # other services aren't forced to mirror our package layout.
+        spring.json.add.type.headers: false
+
 springdoc:
   api-docs:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
     operationsSorter: method
+
+sportlink:
+  jwt:
+    secret: ${SPORTLINK_JWT_SECRET:change-me-in-production-this-is-only-for-local-dev-256-bits-min}
+    expiration-minutes: ${SPORTLINK_JWT_EXPIRATION_MINUTES:720}
+    issuer: sportlink-account-management
+  kafka:
+    topics:
+      account-events: account-events
 
 logging:
   level:

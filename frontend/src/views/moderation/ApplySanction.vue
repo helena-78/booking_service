@@ -3,24 +3,23 @@
     <h2>Apply Account Sanction</h2>
 
     <label>Case ID (UUID)</label>
-    <input v-model="caseId" placeholder="00000000-0000-0000-0000-000000000000" />
+    <input v-model="caseId" placeholder="The moderation case this sanction belongs to" />
 
     <label>Target User ID (UUID)</label>
-    <input v-model="targetUserId" placeholder="UUID of the user to sanction" />
+    <input v-model="targetUserId" placeholder="UUID of the user being sanctioned" />
 
-    <label>Sanction Type</label>
+    <label>Sanction type</label>
     <select v-model="sanctionType">
-      <option value="SUSPENSION">SUSPENSION → user status becomes SUSPENDED</option>
-      <option value="BAN">BAN → user status becomes BANNED</option>
+      <option value="SUSPENSION">SUSPENSION</option>
+      <option value="BAN">BAN</option>
     </select>
 
-    <button @click="applySanction" :disabled="loading">
-      {{ loading ? 'Applying…' : 'Apply Sanction' }}
+    <button @click="applySanction" :disabled="loading || !caseId || !targetUserId">
+      <Spinner v-if="loading" :size="14" inline />
+      <span>{{ loading ? 'Applying…' : 'Apply Sanction' }}</span>
     </button>
 
-    <div v-if="error" class="error">
-      <p><b>Error:</b> {{ error }}</p>
-    </div>
+    <div v-if="error" class="error"><p><b>Error:</b> {{ error }}</p></div>
 
     <div
       v-if="result"
@@ -47,8 +46,13 @@
 </template>
 
 <script>
+import { moderationApi } from '../../api/client'
+import { toast } from '../../store/toastStore'
+import Spinner from '../../components/Spinner.vue'
+
 export default {
   name: 'ApplySanction',
+  components: { Spinner },
   data() {
     return {
       caseId: '',
@@ -60,36 +64,24 @@ export default {
     }
   },
   methods: {
-    applySanction() {
+    async applySanction() {
       this.loading = true
       this.error = null
       this.result = null
-
-      fetch('http://localhost:8090/api/sanctions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      try {
+        const body = await moderationApi.applySanction({
           caseId: this.caseId,
           targetUserId: this.targetUserId,
           sanctionType: this.sanctionType
         })
-      })
-        .then(async response => {
-          const body = await response.json().catch(() => null)
-          if (!response.ok && response.status !== 202) {
-            throw new Error((body && body.message) || 'HTTP ' + response.status)
-          }
-          return body
-        })
-        .then(data => {
-          this.result = data
-        })
-        .catch(err => {
-          this.error = err.message
-        })
-        .finally(() => {
-          this.loading = false
-        })
+        this.result = body
+        toast.success(`Sanction applied (sync: ${body.accountSyncStatus}).`)
+      } catch (err) {
+        this.error = err.message
+        if (!err.silent) toast.error(err.message)
+      } finally {
+        this.loading = false
+      }
     }
   }
 }
@@ -100,27 +92,15 @@ export default {
   max-width: 560px;
   margin: 0 auto;
   background: #fff;
-  padding: 30px;
+  padding: 28px 30px;
   border-radius: 10px;
   text-align: left;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
-h2 {
-  color: #2c3e50;
-  text-align: center;
-}
-.hint {
-  background: #f5edf8;
-  border-left: 3px solid #8e44ad;
-  padding: 10px 12px;
-  border-radius: 6px;
-  font-size: 0.9em;
-  color: #555;
-  margin-bottom: 20px;
-}
+h2 { color: #2c3e50; text-align: center; margin-top: 0; }
 label {
   display: block;
-  margin: 18px 0 6px;
+  margin: 16px 0 6px;
   font-weight: bold;
   font-size: 0.85em;
   color: #555;
@@ -136,42 +116,42 @@ input, select {
   border-radius: 6px;
   font-size: 0.95em;
 }
-input:focus, select:focus {
-  outline: none;
-  border-color: #8e44ad;
-}
+input:focus, select:focus { outline: none; border-color: #8e44ad; }
+
 button {
   background: #8e44ad;
   color: white;
   border: none;
-  padding: 12px 24px;
-  margin-top: 25px;
+  padding: 11px 22px;
+  margin-top: 22px;
   border-radius: 6px;
-  font-size: 1em;
+  font-size: 0.95em;
   font-weight: bold;
   cursor: pointer;
-  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 180px;
 }
-button:disabled {
-  background: #aaa;
-  cursor: not-allowed;
-}
+button:disabled { background: #aaa; cursor: not-allowed; }
 .error {
   background: #fadbd8;
   color: #c0392b;
-  padding: 10px 15px;
-  margin-top: 20px;
+  padding: 10px 14px;
+  margin-top: 14px;
   border-radius: 6px;
+  font-size: 0.9em;
 }
 .result {
   padding: 14px 18px;
-  margin-top: 20px;
+  margin-top: 18px;
   border-radius: 8px;
   border-left: 4px solid #8e44ad;
 }
-.result.sync-synced         { background: #d4efdf; color: #196f3d; border-left-color: #27ae60; }
-.result.sync-pending_retry  { background: #fff7e6; color: #7d5b00; border-left-color: #f39c12; }
-.result.sync-failed         { background: #fadbd8; color: #c0392b; border-left-color: #c0392b; }
+.result.sync-synced        { background: #d4efdf; color: #196f3d; border-left-color: #27ae60; }
+.result.sync-pending_retry { background: #fff7e6; color: #7d5b00; border-left-color: #f39c12; }
+.result.sync-failed        { background: #fadbd8; color: #c0392b; border-left-color: #c0392b; }
 .badge {
   display: inline-block;
   padding: 3px 10px;
@@ -181,22 +161,8 @@ button:disabled {
   color: white;
   margin-left: 6px;
 }
-.badge-synced         { background: #27ae60; }
-.badge-pending_retry  { background: #f39c12; }
-.badge-failed         { background: #c0392b; }
-.sync-error {
-  font-size: 0.9em;
-  font-style: italic;
-}
-.note {
-  font-size: 0.9em;
-  margin-top: 10px;
-  font-style: italic;
-}
-code {
-  background: #fff;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 0.9em;
-}
+.badge-synced        { background: #27ae60; }
+.badge-pending_retry { background: #f39c12; }
+.badge-failed        { background: #c0392b; }
+.sync-error { font-size: 0.9em; font-style: italic; }
 </style>

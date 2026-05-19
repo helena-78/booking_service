@@ -61,6 +61,17 @@ public class DatabaseInitializer implements CommandLineRunner {
                 .location(UserLocation.builder().city("Tallinn").build())
                 .build();
 
+        UserProfile demoModerator = UserProfile.builder()
+                .name("Demo Moderator")
+                .contactInfo(UserContactInfo.builder()
+                        .email("moderator@sportlink.test")
+                        .build())
+                .passwordHash(passwordEncoder.encode("moderatorPass1"))
+                .role(UserRole.MODERATOR)
+                .status(UserStatus.ACTIVE)
+                .location(UserLocation.builder().city("Tartu").build())
+                .build();
+
         FacilityProfile demoFacility = FacilityProfile.builder()
                 .name("Tartu Sports Hall")
                 .passwordHash(passwordEncoder.encode("facilityPass1"))
@@ -81,6 +92,7 @@ public class DatabaseInitializer implements CommandLineRunner {
 
         userProfileRepository.save(demoUser);
         userProfileRepository.save(demoOrganizer);
+        userProfileRepository.save(demoModerator);
         facilityProfileRepository.save(demoFacility);
 
         log.info("Seeded {} users and {} facilities",

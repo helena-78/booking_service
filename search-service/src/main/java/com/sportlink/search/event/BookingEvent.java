@@ -8,20 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Read-side mirror of the BookingEvent payload published by the Booking
- * Service on the 'booking-events' Kafka topic.
- *
- * The class is intentionally not shared via a common Maven module: each
- * service owns its own copy of the contract. The shared agreement is the
- * JSON shape, not the Java class - this is what lets the two services be
- * independently deployable.
- *
- * Fields are deserialized by name from JSON, so they must match the
- * producer's field names exactly. {@link #eventType} is a String here
- * (rather than a copy of the producer's enum) so this consumer never
- * crashes if Booking Service adds a new event type in the future.
- */
+
 @Data
 @Builder
 @NoArgsConstructor

@@ -6,7 +6,10 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
@@ -26,9 +29,16 @@ public class AccountManagementClient {
     @Retry(name = CB_INSTANCE)
     public void updateUserStatus(UUID userId, String status) {
         try {
-            accountManagementWebClient
+            WebClient.RequestBodySpec spec = accountManagementWebClient
                     .put()
-                    .uri("/api/users/{id}/status", userId)
+                    .uri("/api/users/{id}/status", userId);
+
+            String authHeader = currentAuthHeader();
+            if (authHeader != null) {
+                spec = spec.header(HttpHeaders.AUTHORIZATION, authHeader);
+            }
+
+            spec
                     .bodyValue(UpdateUserStatusBody.builder().status(status).build())
                     .retrieve()
                     .toBodilessEntity()
@@ -45,6 +55,15 @@ public class AccountManagementClient {
             throw new AccountSyncException(
                     "Account Management is unreachable: " + ex.getMessage(), ex);
         }
+    }
+
+    private String currentAuthHeader() {
+        ServletRequestAttributes attrs =
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attrs == null) {
+            return null;
+        }
+        return attrs.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
     }
 
     @SuppressWarnings("unused")

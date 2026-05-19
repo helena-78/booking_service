@@ -34,6 +34,7 @@ public class ActivityService {
     private final ParticipantRepository participantRepository;
     private final AccountManagementClient accountManagementClient;
     private final com.sportlink.activitymanagement.client.SchedulingClient schedulingClient;
+    private final ActivityEventPublisher activityEventPublisher;
 
 
     @Transactional
@@ -130,26 +131,56 @@ public class ActivityService {
     }
 
     @Transactional
-    public void cancelActivity(UUID activityId) {
-        Activity activity = activityRepository.findById(activityId)
-                .orElseThrow(() -> new ActivityNotFoundException(
-                        "Activity " + activityId + " not found"));
+        public void cancelActivity(UUID activityId) {
+            Activity activity = activityRepository.findById(activityId)
+                    .orElseThrow(() -> new ActivityNotFoundException(
+                            "Activity " + activityId + " not found"));
 
-        if (activity.getStatus() == ActivityStatus.CANCELLED) {
-            return; 
-        }
-        if (activity.getStatus() == ActivityStatus.COMPLETED) {
-            throw new IllegalStateException("Cannot cancel a completed activity");
+            if (activity.getStatus() == ActivityStatus.CANCELLED) {
+                return;
+            }
+            if (activity.getStatus() == ActivityStatus.COMPLETED) {
+                throw new IllegalStateException("Cannot cancel a completed activity");
+            }
+
+            activity.setStatus(ActivityStatus.CANCELLED);
+            activityRepository.save(activity);
+
+            // Publish ActivityCancelledEvent to Kafka - Scheduling Service consumes
+            // it and releases the reserved time slot asynchronously
+            com.sportlink.activitymanagement.event.ActivityCancelledEvent event =
+                    com.sportlink.activitymanagement.event.ActivityCancelledEvent.builder()
+                            .activityId(activity.getActivityId())
+                            .preferredTimeSlotId(activity.getPreferredTimeSlotId())
+                            .cancelledAt(java.time.LocalDateTime.now())
+                            .build();
+            activityEventPublisher.publishActivityCancelled(event);
+
+            log.info("Activity {} cancelled", activityId);
         }
 
-        activity.setStatus(ActivityStatus.CANCELLED);
-        activityRepository.save(activity);
-        // Release the reserved time slot in Scheduling Service.
-        if (activity.getPreferredTimeSlotId() != null) {
-            schedulingClient.releaseSlot(activity.getPreferredTimeSlotId());
-        }
-        log.info("Activity {} cancelled", activityId);
-    }
+    // @Transactional
+    // public void cancelActivity(UUID activityId) {
+    //     Activity activity = activityRepository.findById(activityId)
+    //             .orElseThrow(() -> new ActivityNotFoundException(
+    //                     "Activity " + activityId + " not found"));
+
+    //     if (activity.getStatus() == ActivityStatus.CANCELLED) {
+    //         return; 
+    //     }
+    //     if (activity.getStatus() == ActivityStatus.COMPLETED) {
+    //         throw new IllegalStateException("Cannot cancel a completed activity");
+    //     }
+
+    //     activity.setStatus(ActivityStatus.CANCELLED);
+    //     activityRepository.save(activity);
+    //     // Release the reserved time slot in Scheduling Service.
+    //     if (activity.getPreferredTimeSlotId() != null) {
+    //         schedulingClient.releaseSlot(activity.getPreferredTimeSlotId());
+    //     }
+    //     log.info("Activity {} cancelled", activityId);
+    // }
+    
 
    
     //  Participants

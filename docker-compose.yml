@@ -28,7 +28,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-      
   account-db:
     image: postgres:15
     container_name: sportlink-account-db
@@ -58,10 +57,17 @@ services:
     depends_on:
       account-db:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://account-db:5432/account_service_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPORTLINK_JWT_SECRET: ${SPORTLINK_JWT_SECRET:-dev-only-shared-secret-please-replace-in-production-256-bit-min}
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+      JAVA_TOOL_OPTIONS: "-Duser.language=en -Duser.country=US"
     ports:
       - "8081:8081"
     networks:
@@ -98,11 +104,18 @@ services:
         condition: service_healthy
       account-service:
         condition: service_started
+      kafka:
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://moderation-db:5432/moderation_service_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       ACCOUNT_MANAGEMENT_BASE_URL: http://account-service:8081
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPORTLINK_JWT_SECRET: ${SPORTLINK_JWT_SECRET:-dev-only-shared-secret-please-replace-in-production-256-bit-min}
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+      JAVA_TOOL_OPTIONS: "-Duser.language=en -Duser.country=US"
     ports:
       - "8090:8090"
     networks:
@@ -127,6 +140,93 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+
+  activity-db:
+    image: postgres:15
+    container_name: sportlink-activity-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: activity_management_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5436:5432"
+    volumes:
+      - activity-db-data:/var/lib/postgresql/data
+    networks:
+      - sportlink-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d activity_management_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  activity-service:
+    build:
+      context: ./activity-management-service
+      dockerfile: Dockerfile
+    container_name: sportlink-activity-service
+    restart: unless-stopped
+    depends_on:
+      activity-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      account-service:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://activity-db:5432/activity_management_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPORTLINK_SERVICES_ACCOUNT_MANAGEMENT_URL: http://account-service:8081
+      SPORTLINK_SERVICES_SCHEDULING_URL: http://scheduling-service:8089
+      SPORTLINK_MOCK_DEPENDENCIES: "false"
+    ports:
+      - "8083:8083"
+    networks:
+      - sportlink-network
+
+  scheduling-db:
+    image: postgres:15
+    container_name: sportlink-scheduling-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: scheduling_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5437:5432"
+    volumes:
+      - scheduling-db-data:/var/lib/postgresql/data
+    networks:
+      - sportlink-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d scheduling_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  scheduling-service:
+    build:
+      context: ./scheduling-service
+      dockerfile: Dockerfile
+    container_name: sportlink-scheduling-service
+    restart: unless-stopped
+    depends_on:
+      scheduling-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://scheduling-db:5432/scheduling_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    ports:
+      - "8089:8089"
+    networks:
+      - sportlink-network
   
   booking-service:
     build:
@@ -151,6 +251,97 @@ services:
     networks:
       - sportlink-network
 
+  rating-db:
+    image: postgres:15
+    container_name: sportlink-rating-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ratingservice_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5440:5432"
+    volumes:
+      - rating-db-data:/var/lib/postgresql/data
+    networks:
+      - sportlink-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ratingservice_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  rating-service:
+    build:
+      context: ./rating-management-service
+      dockerfile: Dockerfile
+    container_name: sportlink-rating-service
+    restart: unless-stopped
+    depends_on:
+      rating-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://rating-db:5432/ratingservice_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPORTLINK_MOCK_DEPENDENCIES: "false"
+      SPORTLINK_SERVICES_ACCOUNT_MANAGEMENT_URL: http://account-service:8081
+      SPORTLINK_SERVICES_ACTIVITY_MANAGEMENT_URL: http://activity-service:8083
+    ports:
+      - "8082:8082"
+    networks:
+      - sportlink-network
+
+  matching-db:
+    image: postgres:15
+    container_name: sportlink-matching-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sportlink_matching
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5441:5432"
+    volumes:
+      - matching-db-data:/var/lib/postgresql/data
+    networks:
+      - sportlink-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sportlink_matching"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  matching-service:
+    build:
+      context: ./matching-service
+      dockerfile: Dockerfile
+    container_name: sportlink-matching-service
+    restart: unless-stopped
+    depends_on:
+      matching-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://matching-db:5432/sportlink_matching
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPORTLINK_MOCK_ACCOUNT_MANAGEMENT: "false"
+      SPORTLINK_MOCK_SEARCH: "true"
+      SPORTLINK_MOCK_SCHEDULING: "true"
+      SPORTLINK_SERVICES_ACCOUNT_MANAGEMENT_URL: http://account-service:8081
+      SPORTLINK_SERVICES_SEARCH_URL: http://search-service:8086
+      SPORTLINK_SERVICES_SCHEDULING_URL: http://scheduling-service:8089
+    ports:
+      - "8087:8087"
+    networks:
+      - sportlink-network
+
   search-db:
     image: postgres:15
     container_name: sportlink-search-db
@@ -160,7 +351,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5437:5432"
+      - "5442:5432"
     volumes:
       - search-db-data:/var/lib/postgresql/data
     networks:
@@ -172,31 +363,35 @@ services:
       retries: 5
 
   search-service:
-      build:
-        context: ./search-service
-        dockerfile: Dockerfile
-      container_name: sportlink-search-service
-      restart: unless-stopped
-      depends_on:
-        search-db:
-          condition: service_healthy
-        kafka:
-          condition: service_healthy
-      environment:
-        SPRING_DATASOURCE_URL: jdbc:postgresql://search-db:5432/searchservice_db
-        SPRING_DATASOURCE_USERNAME: postgres
-        SPRING_DATASOURCE_PASSWORD: postgres
-        SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-        SERVICES_BOOKING_URL: http://booking-service:8088
-      ports:
-        - "8086:8086"
-      networks:
-        - sportlink-network
+    build:
+      context: ./search-service
+      dockerfile: Dockerfile
+    container_name: sportlink-search-service
+    restart: unless-stopped
+    depends_on:
+      search-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://search-db:5432/searchservice_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SERVICES_BOOKING_URL: http://booking-service:8088
+    ports:
+      - "8086:8086"
+    networks:
+      - sportlink-network
 
 volumes:
   account-db-data:
   moderation-db-data:
   booking-db-data:
+  activity-db-data:
+  scheduling-db-data:
+  rating-db-data:
+  matching-db-data:
   search-db-data:
 
 networks:

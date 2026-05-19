@@ -15,4 +15,10 @@ public interface UserSuggestionRepository extends JpaRepository<UserSuggestion, 
      * Used by GET /api/matching/users/{userId}/suggestions.
      */
     Optional<UserSuggestion> findTopByUserIdOrderByCreatedAtDesc(UUID userId);
+
+    /**
+     * Delete all cached suggestions for a specific user.
+     * Used to invalidate cache when user profile or reputation changes.
+     */
+    void deleteByUserId(UUID userId);
 }

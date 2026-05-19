@@ -3,6 +3,8 @@ package com.sportlink.moderation.exception;
 import com.sportlink.moderation.dto.response.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -31,6 +33,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccountSyncException.class)
     public ResponseEntity<ErrorResponse> handleAccountSync(AccountSyncException ex) {
         return build(HttpStatus.ACCEPTED, ex.getMessage(), null);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+        return build(HttpStatus.FORBIDDEN,
+                "You do not have permission to perform this action.", null);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthentication(AuthenticationException ex) {
+        return build(HttpStatus.UNAUTHORIZED, "Authentication required.", null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

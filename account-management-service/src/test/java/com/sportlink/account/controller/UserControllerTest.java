@@ -9,8 +9,11 @@ import com.sportlink.account.model.enums.UserRole;
 import com.sportlink.account.model.enums.UserStatus;
 import com.sportlink.account.exception.GlobalExceptionHandler;
 import com.sportlink.account.exception.ResourceNotFoundException;
+import com.sportlink.account.security.JwtAuthenticationFilter;
+import com.sportlink.account.security.JwtTokenProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -26,7 +29,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(UserController.class)
+@WebMvcTest(controllers = UserController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @Import(GlobalExceptionHandler.class)
 class UserControllerTest {
 
@@ -38,6 +42,12 @@ class UserControllerTest {
 
     @MockBean
     private UserService userService;
+
+    @MockBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockBean
+    private JwtTokenProvider jwtTokenProvider;
 
     @Test
     void registerUser_returns201_whenValidRequest() throws Exception {

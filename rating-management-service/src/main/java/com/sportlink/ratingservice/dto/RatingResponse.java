@@ -10,7 +10,9 @@ import lombok.Data;
 public class RatingResponse {
     private UUID ratingId;
     private UUID reviewerId;
+    private String reviewerName;
     private UUID revieweeId;
+    private String revieweeName;
     private UUID activityId;
     private int behaviorValue;
     private String behaviorLabel;

@@ -64,6 +64,12 @@ public class SchedulingController {
         return schedulingService.findAvailableSlots(from, to);
     }
 
+    @GetMapping
+    @Operation(summary = "List all time slots regardless of status")
+    public List<TimeSlotDto> findAll() {
+        return schedulingService.findAllSlots();
+    }
+
     @PostMapping("/reserve")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Reserve a time slot",

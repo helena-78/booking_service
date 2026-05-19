@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +38,7 @@ public class ModerationCaseController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('MODERATOR')")
     public Page<ModerationCaseResponse> listCases(
             @RequestParam(required = false) ContentType contentType,
             @RequestParam(required = false) Verdict verdict,
@@ -45,11 +47,13 @@ public class ModerationCaseController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('MODERATOR')")
     public ModerationCaseResponse getCase(@PathVariable("id") UUID id) {
         return caseService.getCaseById(id);
     }
 
     @PutMapping("/{id}/verdict")
+    @PreAuthorize("hasRole('MODERATOR')")
     public ModerationCaseResponse submitVerdict(@PathVariable("id") UUID id,
                                                 @Valid @RequestBody SubmitVerdictRequest request) {
         return caseService.submitVerdict(id, request);

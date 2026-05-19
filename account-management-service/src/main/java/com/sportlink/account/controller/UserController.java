@@ -8,6 +8,7 @@ import com.sportlink.account.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,6 +45,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}/status")
+    @PreAuthorize("hasRole('MODERATOR')")
     public UserProfileResponse updateUserStatus(@PathVariable("id") UUID id,
                                                 @Valid @RequestBody UpdateUserStatusRequest request) {
         return userService.updateUserStatus(id, request);

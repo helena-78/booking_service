@@ -2,25 +2,22 @@
   <div class="user-ratings">
     <h2>User Ratings</h2>
 
-    <form @submit.prevent="fetchRatings" class="search-form">
-      <label for="userId">User ID</label>
-      <input
-        id="userId"
-        v-model="userId"
-        placeholder="Enter reviewee UUID"
-        type="text"
-      />
-      <button type="submit">Load Ratings</button>
-    </form>
+    <div v-if="userId" class="user-info">
+      <p>Showing ratings for user: <strong>{{ userId }}</strong></p>
+    </div>
+
+    <div v-else class="status error">
+      <p>No user selected. Open this page from a user profile to view that user's ratings.</p>
+    </div>
 
     <div v-if="loading" class="status">Loading ratings…</div>
     <div v-else-if="error" class="status error">{{ error }}</div>
 
-    <div v-else-if="ratings.length === 0" class="status">
+    <div v-else-if="ratings.length === 0 && userId" class="status">
       <p>No ratings found for this user.</p>
     </div>
 
-    <div v-else class="ratings-list">
+    <div v-else-if="ratings.length > 0" class="ratings-list">
       <p class="count">Found <strong>{{ ratings.length }}</strong> rating(s)</p>
       <div v-for="rating in ratings" :key="rating.ratingId" class="rating-card">
         <div class="rating-header">
@@ -28,7 +25,10 @@
           <span class="created-at">{{ formatDate(rating.createdAt) }}</span>
         </div>
         <div class="rating-row">
-          <strong>Reviewer:</strong> {{ rating.reviewerId }}
+          <strong>Reviewer:</strong> {{ rating.reviewerName || rating.reviewerId }}
+        </div>
+        <div class="rating-row">
+          <strong>Reviewee:</strong> {{ rating.revieweeName || rating.revieweeId }}
         </div>
         <div class="rating-row">
           <strong>Activity:</strong> {{ rating.activityId }}
@@ -57,10 +57,23 @@ export default {
       error: null
     }
   },
+  watch: {
+    '$route.params.userId': {
+      immediate: true,
+      handler(value) {
+        this.userId = value || this.$route.query.revieweeId || ''
+        this.ratings = []
+        this.error = null
+        if (this.userId) {
+          this.fetchRatings()
+        }
+      }
+    }
+  },
   methods: {
     fetchRatings() {
       if (!this.userId) {
-        this.error = 'Please enter a user ID.'
+        this.error = 'No user selected.'
         this.ratings = []
         return
       }

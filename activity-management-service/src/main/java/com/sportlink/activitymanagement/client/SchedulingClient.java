@@ -11,10 +11,15 @@ import org.springframework.web.reactive.function.client.WebClient;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Thin client over Scheduling Service.
+ * Thin synchronous client over Scheduling Service.
  *
- * Activity Management uses it to reserve a time slot when an activity is created
- * with a preferredTimeSlotId, and to release the slot when the activity is cancelled.
+ * Activity Management uses it to reserve a time slot when an activity is
+ * created with a preferredTimeSlotId. The returned slotId is needed
+ * synchronously to persist it on the activity, so this stays as a REST call.
+ *
+ * Slot *release* on cancellation, in contrast, is now published as an
+ * ActivityCancelledEvent on Kafka — see ActivityEventPublisher. This client
+ * no longer talks to Scheduling for release.
  */
 @Component
 @Slf4j
@@ -73,26 +78,6 @@ public class SchedulingClient {
         }
     }
 
-    /**
-     * Release a previously reserved time slot.
-     * Idempotent and best-effort — failures are logged but do not propagate.
-     */
-    public void releaseSlot(UUID slotId) {
-        if (mock) {
-            log.debug("Mock mode: pretending to release slot {}", slotId);
-            return;
-        }
-
-        try {
-            webClientBuilder.build()
-                    .delete()
-                    .uri(schedulingUrl + "/api/timeslots/{id}/release", slotId)
-                    .retrieve()
-                    .toBodilessEntity()
-                    .block();
-            log.info("Released slot {}", slotId);
-        } catch (Exception e) {
-            log.warn("Failed to release slot {}: {}", slotId, e.getMessage());
-        }
-    }
+    
+    
 }

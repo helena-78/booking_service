@@ -16,7 +16,11 @@
     <div v-else>
       <p class="count">Found <b>{{ activities.length }}</b> activity(ies)</p>
       <div class="item" v-for="activity in activities" :key="activity.activityId">
-        <h3>{{ activity.title }}</h3>
+        <h3>
+          <router-link :to="'/activities/' + activity.activityId" class="title-link">
+            {{ activity.title }}
+          </router-link>
+        </h3>
         <div class="meta">
           <span class="badge" :class="'status-' + activity.status.toLowerCase()">
             {{ activity.status }}
@@ -27,14 +31,9 @@
           </span>
         </div>
         <p v-if="activity.description" class="description">{{ activity.description }}</p>
-        <p class="ids">
-          <small>
-            <b>Organizer:</b> {{ activity.organizerId }}<br />
-            <b>Activity ID:</b> {{ activity.activityId }}
-            <span v-if="activity.preferredTimeSlotId">
-              <br /><b>Reserved slot:</b> {{ activity.preferredTimeSlotId }}
-            </span>
-          </small>
+        <p class="organizer-line">
+          <b>Organized by:</b>
+          {{ organizerName(activity.organizerId) || 'Loading…' }}
         </p>
       </div>
     </div>
@@ -47,6 +46,7 @@ export default {
   data() {
     return {
       activities: [],
+      profiles: {},     // userId → profile
       loading: false,
       error: null
     }
@@ -56,14 +56,18 @@ export default {
       this.loading = true
       this.error = null
       fetch('http://localhost:8083/api/activities')
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Failed to fetch activities (HTTP ' + response.status + ')')
+        .then(async r => {
+          if (!r.ok) {
+            const err = await r.json().catch(() => ({}))
+            throw new Error(err.message || `HTTP ${r.status}`)
           }
-          return response.json()
+          return r.json()
         })
         .then(data => {
           this.activities = data
+          // Fetch organizer profiles in parallel
+          const uniqueOrganizers = [...new Set(data.map(a => a.organizerId))]
+          uniqueOrganizers.forEach(id => this.fetchProfile(id))
         })
         .catch(err => {
           this.error = err.message
@@ -72,6 +76,22 @@ export default {
         .finally(() => {
           this.loading = false
         })
+    },
+
+    fetchProfile(userId) {
+      if (this.profiles[userId]) return
+      fetch(`http://localhost:8081/api/users/${userId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(profile => {
+          if (profile) {
+            this.profiles = { ...this.profiles, [userId]: profile }
+          }
+        })
+        .catch(() => { /* ignore — show fallback */ })
+    },
+
+    organizerName(userId) {
+      return this.profiles[userId]?.name
     }
   },
   mounted() {
@@ -99,6 +119,14 @@ export default {
   margin: 0 0 8px;
   color: #2c3e50;
 }
+.title-link {
+  color: #2c3e50;
+  text-decoration: none;
+}
+.title-link:hover {
+  color: #42b983;
+  text-decoration: underline;
+}
 .meta {
   display: flex;
   gap: 12px;
@@ -124,9 +152,10 @@ export default {
   color: #555;
   margin: 8px 0;
 }
-.ids {
-  color: #777;
-  margin: 0;
+.organizer-line {
+  color: #555;
+  margin: 8px 0 0;
+  font-size: 0.95em;
 }
 .loading, .empty, .error {
   text-align: center;

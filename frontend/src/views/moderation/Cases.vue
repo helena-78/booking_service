@@ -22,10 +22,13 @@
           <option value="DISMISSED">DISMISSED</option>
         </select>
       </label>
-      <button @click="fetchCases">Refresh</button>
+      <button @click="fetchCases" :disabled="loading">
+        <Spinner v-if="loading" :size="14" inline />
+        <span>Refresh</span>
+      </button>
     </div>
 
-    <div v-if="loading" class="loading">Loading…</div>
+    <Spinner v-if="loading" label="Loading cases…" />
 
     <div v-else-if="error" class="error">
       <p>{{ error }}</p>
@@ -42,6 +45,7 @@
         <div class="header-row">
           <span class="badge" :class="'verdict-' + c.verdict.toLowerCase()">{{ c.verdict }}</span>
           <span class="type">{{ c.contentType }}</span>
+          <router-link :to="`/moderation/cases/${c.caseId}`" class="open-link">Open →</router-link>
         </div>
         <p class="content">{{ c.content }}</p>
         <p class="ids">
@@ -60,8 +64,14 @@
 </template>
 
 <script>
+import { moderationApi } from '../../api/client'
+import { authState } from '../../store/authStore'
+import { toast } from '../../store/toastStore'
+import Spinner from '../../components/Spinner.vue'
+
 export default {
   name: 'ModerationCases',
+  components: { Spinner },
   data() {
     return {
       cases: [],
@@ -73,43 +83,51 @@ export default {
     }
   },
   methods: {
-    fetchCases() {
+    async fetchCases() {
       this.loading = true
       this.error = null
-      const params = new URLSearchParams()
-      if (this.contentType) params.append('contentType', this.contentType)
-      if (this.verdict) params.append('verdict', this.verdict)
-      params.append('size', '20')
-      params.append('sort', 'createdAt,desc')
-      fetch('http://localhost:8090/api/cases?' + params.toString())
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Failed to fetch cases (HTTP ' + response.status + ')')
-          }
-          return response.json()
+      try {
+        const data = await moderationApi.listCases({
+          contentType: this.contentType,
+          verdict: this.verdict
         })
-        .then(data => {
-          this.cases = data.content || []
-          this.totalElements = data.totalElements || this.cases.length
-        })
-        .catch(err => {
-          this.error = err.message
-          console.error(err)
-        })
-        .finally(() => {
-          this.loading = false
-        })
+        this.cases = data.content || []
+        this.totalElements = data.totalElements || this.cases.length
+      } catch (err) {
+        this.error = err.message
+        if (!err.silent) toast.error(err.message)
+      } finally {
+        this.loading = false
+      }
     }
   },
   mounted() {
+    if (!authState.token) {
+      toast.info('Please sign in to view moderation cases.')
+      this.$router.push('/account/login')
+      return
+    }
     this.fetchCases()
   }
 }
 </script>
 
 <style scoped>
-.cases {
-  text-align: left;
+.cases { text-align: left; max-width: 760px; margin: 0 auto; }
+h2 { color: #2c3e50; text-align: center; }
+.role-badge {
+  background: #fdebd0;
+  color: #7e5109;
+  border-left: 3px solid #f39c12;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.85em;
+  margin-bottom: 18px;
+}
+.role-badge.ok {
+  background: #d4efdf;
+  color: #196f3d;
+  border-left-color: #27ae60;
 }
 .filters {
   display: flex;
@@ -135,10 +153,7 @@ export default {
   border-radius: 6px;
   border: 1px solid #d5dde0;
 }
-.filters select:focus {
-  outline: none;
-  border-color: #8e44ad;
-}
+.filters select:focus { outline: none; border-color: #8e44ad; }
 .filters button {
   background: #8e44ad;
   color: white;
@@ -147,11 +162,12 @@ export default {
   border-radius: 6px;
   cursor: pointer;
   font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
-.count {
-  text-align: center;
-  color: #555;
-}
+.filters button:disabled { background: #aaa; cursor: not-allowed; }
+.count { text-align: center; color: #555; }
 .item {
   background: #f5edf8;
   padding: 12px 18px;
@@ -165,6 +181,13 @@ export default {
   align-items: center;
   margin-bottom: 6px;
 }
+.open-link {
+  margin-left: auto;
+  font-size: 0.85em;
+  color: #8e44ad;
+  text-decoration: none;
+  font-weight: bold;
+}
 .badge {
   display: inline-block;
   padding: 3px 10px;
@@ -173,30 +196,15 @@ export default {
   font-weight: bold;
   color: white;
 }
-.verdict-pending         { background: #f39c12; }
-.verdict-remove_content  { background: #c0392b; }
-.verdict-sanction_user   { background: #8e44ad; }
-.verdict-dismissed       { background: #95a5a6; }
-.type {
-  color: #555;
-  font-size: 0.9em;
-  font-weight: bold;
-}
-.content {
-  margin: 6px 0;
-  color: #333;
-}
-.ids {
-  color: #777;
-  margin: 0;
-}
-.loading, .empty, .error {
-  text-align: center;
-  padding: 30px;
-}
-.error {
-  color: #c0392b;
-}
+.verdict-pending        { background: #f39c12; }
+.verdict-remove_content { background: #c0392b; }
+.verdict-sanction_user  { background: #8e44ad; }
+.verdict-dismissed      { background: #95a5a6; }
+.type { color: #555; font-size: 0.9em; font-weight: bold; }
+.content { margin: 6px 0; color: #333; }
+.ids { color: #777; margin: 0; }
+.empty, .error { text-align: center; padding: 30px; }
+.error { color: #c0392b; }
 .error button {
   background: #8e44ad;
   color: white;

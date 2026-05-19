@@ -60,6 +60,14 @@ public class SchedulingService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<TimeSlotDto> findAllSlots() {
+        return timeSlotRepository.findAll()
+                .stream()
+                .map(this::toDto)
+                .toList();
+    }
+
     /**
      * Reserve a new time slot.
      * Used by POST /api/timeslots/reserve.

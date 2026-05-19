@@ -4,6 +4,7 @@ import com.sportlink.moderation.dto.response.ContentRemovalResponse;
 import com.sportlink.moderation.model.enums.ContentType;
 import com.sportlink.moderation.service.ContentRemovalService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,6 +20,7 @@ public class ContentController {
     private final ContentRemovalService contentRemovalService;
 
     @DeleteMapping("/{contentType}/{contentId}")
+    @PreAuthorize("hasRole('MODERATOR')")
     public ContentRemovalResponse removeContent(@PathVariable("contentType") ContentType contentType,
                                                 @PathVariable("contentId") UUID contentId) {
         return contentRemovalService.delegateRemoval(contentType, contentId);

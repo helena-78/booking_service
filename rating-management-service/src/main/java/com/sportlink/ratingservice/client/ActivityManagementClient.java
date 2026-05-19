@@ -15,11 +15,14 @@ public class ActivityManagementClient {
 
     private final WebClient.Builder webClientBuilder;
     private final boolean mock;
+    private final String activityManagementUrl;
 
     public ActivityManagementClient(WebClient.Builder webClientBuilder,
-                                    @Value("${sportlink.mock.dependencies:true}") boolean mock) {
+                                    @Value("${sportlink.mock.dependencies:true}") boolean mock,
+                                    @Value("${sportlink.services.activity-management.url:http://activity-service:8083}") String activityManagementUrl) {
         this.webClientBuilder = webClientBuilder;
         this.mock = mock;
+        this.activityManagementUrl = activityManagementUrl;
     }
 
     public boolean bothParticipatedAndActivityCompleted(UUID activityId, UUID reviewerId, UUID revieweeId) {
@@ -31,7 +34,7 @@ public class ActivityManagementClient {
         try {
             ActivityDto activity = webClientBuilder.build()
                     .get()
-                    .uri("http://localhost:8083/api/activities/{id}", activityId) // change to docker service name
+                    .uri(activityManagementUrl + "/api/activities/{id}", activityId)
                     .retrieve()
                     .bodyToMono(ActivityDto.class)
                     .block();

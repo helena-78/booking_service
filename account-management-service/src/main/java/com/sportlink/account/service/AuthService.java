@@ -2,11 +2,12 @@ package com.sportlink.account.service;
 
 import com.sportlink.account.dto.request.LoginRequest;
 import com.sportlink.account.dto.response.AuthResponse;
+import com.sportlink.account.exception.InvalidCredentialsException;
 import com.sportlink.account.model.FacilityProfile;
 import com.sportlink.account.model.UserProfile;
 import com.sportlink.account.repository.FacilityProfileRepository;
 import com.sportlink.account.repository.UserProfileRepository;
-import com.sportlink.account.exception.InvalidCredentialsException;
+import com.sportlink.account.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,11 +21,14 @@ import java.util.Optional;
 @Slf4j
 public class AuthService {
 
-    private static final String TOKEN_PLACEHOLDER = "TODO";
+    private static final String ACCOUNT_TYPE_USER = "USER";
+    private static final String ACCOUNT_TYPE_FACILITY = "FACILITY";
+    private static final String FACILITY_ROLE = "FACILITY";
 
     private final UserProfileRepository userProfileRepository;
     private final FacilityProfileRepository facilityProfileRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider tokenProvider;
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
@@ -34,12 +38,14 @@ public class AuthService {
             if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
                 throw new InvalidCredentialsException("Invalid email or password");
             }
-            log.info("User login: {}", user.getUserId());
+            String role = user.getRole().name();
+            String token = tokenProvider.generateToken(user.getUserId(), ACCOUNT_TYPE_USER, role);
+            log.info("User login: {} (role: {})", user.getUserId(), role);
             return AuthResponse.builder()
                     .accountId(user.getUserId())
-                    .accountType("USER")
-                    .role(user.getRole().name())
-                    .token(TOKEN_PLACEHOLDER)
+                    .accountType(ACCOUNT_TYPE_USER)
+                    .role(role)
+                    .token(token)
                     .build();
         }
 
@@ -49,12 +55,13 @@ public class AuthService {
             if (!passwordEncoder.matches(request.getPassword(), facility.getPasswordHash())) {
                 throw new InvalidCredentialsException("Invalid email or password");
             }
+            String token = tokenProvider.generateToken(facility.getCenterId(), ACCOUNT_TYPE_FACILITY, FACILITY_ROLE);
             log.info("Facility login: {}", facility.getCenterId());
             return AuthResponse.builder()
                     .accountId(facility.getCenterId())
-                    .accountType("FACILITY")
-                    .role("FACILITY")
-                    .token(TOKEN_PLACEHOLDER)
+                    .accountType(ACCOUNT_TYPE_FACILITY)
+                    .role(FACILITY_ROLE)
+                    .token(token)
                     .build();
         }
 

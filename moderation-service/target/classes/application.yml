@@ -5,6 +5,10 @@ spring:
   application:
     name: moderation-service
 
+  web:
+    locale: en
+    locale-resolver: fixed
+
   datasource:
     url: jdbc:postgresql://localhost:5439/moderation_service_db
     username: postgres
@@ -20,12 +24,43 @@ spring:
         format_sql: true
     show-sql: false
 
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:moderation-service}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        # Producer doesn't write type headers, so bind every message to our
+        # local AccountEvent class instead of inferring the type per message.
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.sportlink.moderation.event.AccountEvent
+        spring.json.trusted.packages: "com.sportlink.moderation.event,com.sportlink.account.event,*"
+
 springdoc:
   api-docs:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
     operationsSorter: method
+
+sportlink:
+  jwt:
+    secret: ${SPORTLINK_JWT_SECRET:change-me-in-production-this-is-only-for-local-dev-256-bits-min}
+    issuer: sportlink-account-management
+  kafka:
+    topics:
+      moderation-events: moderation-events
+      # Owned by Account Management; we only consume from it.
+      account-events: account-events
 
 clients:
   account-management:

@@ -17,29 +17,6 @@ import com.sportlink.search.repository.SearchIndexRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Consumes booking-events from Kafka and updates the search index so
- * facility availability stays in sync with the Booking Service.
- *
- * Per the Checkpoint 3 event table (Workflow 3 + Workflow 4), the Search
- * Service is interested in three of the four event types:
- *
- *   BOOKING_CONFIRMED  -  slot becomes occupied  -> add timeSlotId to
- *                                                   the facility's
- *                                                   "occupiedSlots" keyword set
- *   BOOKING_CANCELLED  -  slot becomes free      -> remove timeSlotId
- *   PAYMENT_REFUNDED   -  reinforces cancelled   -> remove timeSlotId
- *                                                   (idempotent reinforcement)
- *
- * BOOKING_CREATED is ignored - per the assignment table only the
- * Notification Service consumes it. We log it at DEBUG level for traceability.
- *
- * Strategy: the facility's SearchIndex row is looked up by entityId, which
- * the Booking Service event carries as sportCenterId. The "occupied slot"
- * marker is stored as a synthetic keyword of the form "slot:{timeSlotId}".
- * This keeps the existing schema unchanged - no new column needed - and
- * the keywords are already searchable via the matchesText() filter.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -51,7 +28,8 @@ public class BookingEventConsumer {
 
     @KafkaListener(
             topics = "${sportlink.kafka.topics.booking-events}",
-            groupId = "${spring.kafka.consumer.group-id}"
+            groupId = "${spring.kafka.consumer.group-id}",
+            containerFactory = "bookingEventKafkaListenerContainerFactory"
     )
     @Transactional
     public void onBookingEvent(BookingEvent event) {
@@ -75,9 +53,10 @@ public class BookingEventConsumer {
             case "PAYMENT_REFUNDED":
                 markSlotFree(event);
                 break;
+            case "FACILITY_AVAILABILITY_CHANGED":
+                refreshFacility(event);
+                break;
             case "BOOKING_CREATED":
-                // Not in this service's responsibilities (assignment table -
-                // Notification Service handles WF 1). Logged for traceability.
                 log.debug("Ignoring BOOKING_CREATED for booking={} - " +
                         "not consumed by Search Service", event.getBookingId());
                 break;
@@ -86,10 +65,6 @@ public class BookingEventConsumer {
                         event.getEventType(), event.getBookingId());
         }
     }
-
-    // ----------------------------------------------------------------
-    // event handlers
-    // ----------------------------------------------------------------
 
     private void markSlotOccupied(BookingEvent event) {
         Optional<SearchIndex> maybe = findFacilityIndex(event);
@@ -138,9 +113,24 @@ public class BookingEventConsumer {
                 event.getTimeSlotId(), event.getSportCenterId());
     }
 
-    // ----------------------------------------------------------------
-    // helpers
-    // ----------------------------------------------------------------
+    private void refreshFacility(BookingEvent event) {
+        String sportCenterId = event.getSportCenterId();
+        if (sportCenterId == null || sportCenterId.isBlank()) {
+            log.warn("FACILITY_AVAILABILITY_CHANGED with no sportCenterId; skipping");
+            return;
+        }
+        Optional<SearchIndex> maybe = repository
+                .findByEntityTypeAndEntityId(EntityType.FACILITY, sportCenterId);
+        if (maybe.isEmpty()) {
+            log.warn("Facility {} not present in search index; " +
+                    "cannot refresh availability", sportCenterId);
+            return;
+        }
+        SearchIndex idx = maybe.get();
+        idx.setLastIndexedAt(LocalDateTime.now());
+        repository.save(idx);
+        log.info("Refreshed facility {} after availability change", sportCenterId);
+    }
 
     private Optional<SearchIndex> findFacilityIndex(BookingEvent event) {
         String sportCenterId = event.getSportCenterId();

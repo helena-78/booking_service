@@ -17,8 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.sportlink.ratingservice.dto.RatingRequest;
 import com.sportlink.ratingservice.dto.RatingResponse;
 import com.sportlink.ratingservice.dto.UserReputationResponse;
-import com.sportlink.ratingservice.model.Rating;
-import com.sportlink.ratingservice.model.UserReputation;
 import com.sportlink.ratingservice.service.RatingService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,7 +25,10 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
 
-@CrossOrigin(origins = "http://localhost:8080")
+@CrossOrigin(origins = {
+    "http://localhost:8080",
+    "http://frontend:8080"
+})
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -39,13 +40,14 @@ public class RatingController {
     @Operation(summary = "Submit a new rating", description = "Validates participation via ActivityManagement stub, prevents duplicates")
     @PostMapping("/ratings")
     public ResponseEntity<RatingResponse> submitRating(@RequestBody RatingRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(ratingService.submitRating(request).toResponse());
+        var savedRating = ratingService.submitRating(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ratingService.getRatingResponseById(savedRating.getRatingId()));
     }
 
     @Operation(summary = "Get a rating by ID")
     @GetMapping("/ratings/{ratingId}")
     public ResponseEntity<RatingResponse> getRating(@PathVariable UUID ratingId) {
-        return ResponseEntity.ok(ratingService.getRatingById(ratingId).toResponse());
+        return ResponseEntity.ok(ratingService.getRatingResponseById(ratingId));
     }
 
     @Operation(summary = "List ratings", description = "Filter by reviewerId, revieweeId, or activityId")
@@ -54,8 +56,7 @@ public class RatingController {
             @RequestParam(required = false) UUID reviewerId,
             @RequestParam(required = false) UUID revieweeId,
             @RequestParam(required = false) UUID activityId) {
-        return ResponseEntity.ok(ratingService.getRatings(reviewerId, revieweeId, activityId)
-                .stream().map(Rating::toResponse).toList());
+        return ResponseEntity.ok(ratingService.getRatingsResponse(reviewerId, revieweeId, activityId));
     }
 
     @Operation(summary = "Delete a rating")
